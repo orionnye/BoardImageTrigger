@@ -13,8 +13,9 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from camera_select import CameraPicker, FoundCamera  # noqa: E402
 from capture import crop_and_resize, remove_stale_temp_files, save_atomic  # noqa: E402
-from config import DEFAULTS, load_config  # noqa: E402
+from config import DEFAULTS, load_config, save_camera_index  # noqa: E402
 from detector import State  # noqa: E402
 from main import App  # noqa: E402
 from tracker import Track, Tracker  # noqa: E402
@@ -135,6 +136,14 @@ class AppFlowTests(unittest.TestCase):
         self.assertTrue(app.det.learning)
         self.assertGreater(app.det.learn_restarts, 0)
 
+    def test_relearn_in_both_views_survives_learning_finishing(self):
+        for debug in (True, False):
+            self.app.debug = debug
+            self.run_frames(20, board=True)                 # something on the tray
+            self.run_frames(1, key=ord("b"))
+            self.run_frames(40)                             # learning completes mid-run
+            self.assertEqual(self.app.sm.state, State.ARMED_EMPTY)
+
     def test_relearn_key(self):
         self.run_frames(1, key=ord("b"))
         self.assertEqual(self.app.sm.state, State.LEARNING)
@@ -216,6 +225,44 @@ class ConfigTests(unittest.TestCase):
 
     def test_invalid_json_uses_defaults(self):
         self.assertEqual(self.load("{not json"), DEFAULTS)
+
+
+class CameraPickerTests(unittest.TestCase):
+    def picker(self, default=2, timeout=10):
+        snap = np.zeros((90, 160, 3), np.uint8)
+        found = [FoundCamera(i, snap, 160, 90) for i in (0, 2, 3)]
+        return CameraPicker(found, default, timeout, now=0.0)
+
+    def test_highlights_saved_camera_and_auto_starts_after_timeout(self):
+        p = self.picker(default=2)
+        self.assertIsNone(p.handle_key(-1, now=9.9))
+        self.assertEqual(p.handle_key(-1, now=10.0), 2)
+
+    def test_number_keys_pick_by_position(self):
+        self.assertEqual(self.picker().handle_key(ord("3"), now=0), 3)
+        self.assertIsNone(self.picker().handle_key(ord("9"), now=0))
+
+    def test_tab_moves_highlight_and_stops_countdown(self):
+        p = self.picker(default=2)
+        p.handle_key(9, now=0)
+        self.assertIsNone(p.handle_key(-1, now=100))
+        self.assertEqual(p.handle_key(13, now=100), 3)
+
+    def test_quit_rescan_and_unknown_default(self):
+        p = self.picker(default=7)          # saved camera no longer connected
+        self.assertEqual(p.selected, 0)
+        self.assertEqual(p.handle_key(ord("q"), now=0), "quit")
+        self.assertEqual(p.handle_key(ord("s"), now=0), "rescan")
+        self.assertEqual(p.render(now=1).ndim, 3)
+
+    def test_zero_timeout_waits_forever(self):
+        self.assertIsNone(self.picker(timeout=0).handle_key(-1, now=1e6))
+
+    def test_save_camera_index_keeps_other_settings(self):
+        p = Path(tempfile.mkdtemp()) / "config.json"
+        p.write_text(json.dumps({"camera_index": 0, "jpeg_quality": 80}))
+        save_camera_index(3, p)
+        self.assertEqual(json.loads(p.read_text()), {"camera_index": 3, "jpeg_quality": 80})
 
 
 if __name__ == "__main__":

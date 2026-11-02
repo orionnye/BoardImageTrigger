@@ -61,6 +61,7 @@ class Detector:
 
     def relearn(self):
         self.learn_restarts = 0
+        self.debug = None          # drop drawings from the old background
         self.background = None
         self.prev = None
         self._learn_acc = None

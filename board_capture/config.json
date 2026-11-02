@@ -20,5 +20,8 @@
   "debug_view": false,
   "stable_frames": 15,
   "merge_px": 15,
-  "min_object_frac": 0.002
+  "min_object_frac": 0.002,
+  "camera_select_on_boot": true,
+  "camera_scan_max": 5,
+  "camera_select_timeout_s": 10
 }

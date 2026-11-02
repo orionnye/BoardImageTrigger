@@ -2,6 +2,9 @@
 
 Usage:  python main.py [--camera N] [--config PATH] [--debug]
 
+At startup a camera picker is shown when more than one camera is connected
+(skipped with --camera N, or camera_select_on_boot=false in config.json).
+
 Keys (preview window focused):
   R = reject the last photo (deletes it; the board is captured again once still)
   B = re-learn background
@@ -22,8 +25,9 @@ import numpy as np
 import debug_view
 import ui
 from camera import Camera
+from camera_select import select_camera
 from capture import crop_and_resize, remove_stale_temp_files, save_atomic
-from config import CONFIG_PATH, load_config, resolve_output_dir
+from config import CONFIG_PATH, load_config, resolve_output_dir, save_camera_index
 from detector import Detector, State, StateMachine
 
 WINDOW = "Board Capture"
@@ -137,7 +141,7 @@ def show(img):
 
 def parse_args():
     p = argparse.ArgumentParser(description="Detect a board on the tray and save one photo of it.")
-    p.add_argument("--camera", type=int, help="camera index (overrides config)")
+    p.add_argument("--camera", type=int, help="camera index (skips the camera picker)")
     p.add_argument("--config", type=Path, default=CONFIG_PATH, help="path to config.json")
     p.add_argument("--debug", action="store_true", help="start in the debug view")
     return p.parse_args()
@@ -167,6 +171,16 @@ def main():
         cfg["debug_view"] = True
 
     cv2.namedWindow(WINDOW, cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)
+
+    if args.camera is None and cfg["camera_select_on_boot"]:
+        chosen = select_camera(cfg, show, read_key, window_open)
+        if chosen is None:
+            cv2.destroyAllWindows()
+            return
+        if chosen != cfg["camera_index"]:
+            save_camera_index(chosen, args.config)
+        cfg["camera_index"] = chosen
+
     show(ui.message_screen("Starting camera...", [f"Camera {cfg['camera_index']}"]))
     read_key(1)
 

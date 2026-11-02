@@ -10,7 +10,7 @@ log = logging.getLogger(__name__)
 WARMUP_FRAMES = 30
 
 
-def _backend() -> int:
+def backend() -> int:
     if sys.platform.startswith("win"):
         return cv2.CAP_DSHOW
     if sys.platform == "darwin":
@@ -31,7 +31,7 @@ class Camera:
 
     def open(self) -> bool:
         cfg = self.cfg
-        self.cap = cv2.VideoCapture(cfg["camera_index"], _backend())
+        self.cap = cv2.VideoCapture(cfg["camera_index"], backend())
         if not self.cap.isOpened():
             log.error("Could not open camera %s", cfg["camera_index"])
             self.failures = cfg["camera_retry_limit"]

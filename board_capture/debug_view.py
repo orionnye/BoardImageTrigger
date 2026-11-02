@@ -62,7 +62,8 @@ def render(app, frame, now):
     main_h = round(MAIN_W * fh / fw)
     s = MAIN_W / fw                       # full-res -> main view
     main = cv2.resize(src, (MAIN_W, main_h), interpolation=cv2.INTER_AREA)
-    dbg = det.debug if not det.learning else None
+    # Only draw detector data that belongs to this frame's measurement.
+    dbg = det.debug if m is not None else None
 
     # ---- markers on the live view ---------------------------------------
     if dbg is not None:

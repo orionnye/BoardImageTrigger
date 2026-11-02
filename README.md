@@ -16,11 +16,27 @@ Runs on Windows, macOS and Linux. Needs only Python, OpenCV and NumPy, and works
    - **macOS / Linux:** run `./run_mac.sh`
 
    The first run sets up a private Python environment, which takes a minute.
-4. Keep the tray clear for about a second while it learns the empty background.
+4. If more than one camera is connected, pick one on the **Select camera** screen (see below).
+5. Keep the tray clear for about a second while it learns the empty background.
 
 Photos are saved to `board_capture/captures/`, named `board_YYYYMMDD_HHMMSS_mmm.jpg`.
 Each file is written under a temporary name and then renamed, so a program watching the
 folder never sees a half-written image.
+
+## Choosing a camera
+
+At startup the tool looks for connected cameras and shows a snapshot from each:
+
+- Press **1-9** to start with that camera, or **Enter** for the highlighted one.
+- **Tab** moves the highlight (and stops the countdown). **S** scans again. **Q** quits.
+- The choice is saved to `config.json` and highlighted next time. If nobody presses
+  anything, it starts with that camera after 10 seconds, so an unattended station
+  still boots on its own.
+- With only one camera connected, the screen is skipped.
+- With no camera connected, it shows **NO CAMERAS FOUND** and keeps checking.
+
+OpenCV can't read camera names, so cameras are listed by number with a snapshot.
+To skip the picker, start with `--camera N` or set `camera_select_on_boot` to `false`.
 
 ## Using it
 
@@ -72,7 +88,7 @@ camera comes back, the tool re-learns the background automatically.
 ### Command-line options
 
 ```
-run_windows.bat --camera 1        # use a different camera
+run_windows.bat --camera 1        # use camera 1 and skip the camera picker
 run_windows.bat --debug           # start in the debug view
 run_windows.bat --config D:\station2\config.json
 ```
@@ -84,7 +100,10 @@ logged and replaced with the default.
 
 | Key | Default | Purpose |
 |---|---|---|
-| `camera_index` | 0 | Which webcam |
+| `camera_index` | 0 | Which webcam (updated when you pick one at startup) |
+| `camera_select_on_boot` | true | Show the camera picker when more than one camera is connected |
+| `camera_scan_max` | 5 | How many camera numbers (0, 1, 2...) the picker checks |
+| `camera_select_timeout_s` | 10 | Seconds before the picker starts with the highlighted camera (0 = wait) |
 | `frame_width`, `frame_height` | 1920, 1080 | Requested resolution |
 | `lock_camera_auto` | true | Try to lock auto-exposure, focus and white balance |
 | `present_threshold` | 0.05 | Share of the frame that must change for "something is on the tray" |
@@ -131,6 +150,7 @@ The tests use simulated camera frames, so no camera is needed.
 | File | Role |
 |---|---|
 | `main.py` | Entry point, main loop, keys, camera reconnect |
+| `camera_select.py` | Startup camera picker |
 | `camera.py` | Opening the camera, settings, frame reads |
 | `detector.py` | Background model, object finding, capture state machine |
 | `tracker.py` | Following objects between frames, choosing the target |

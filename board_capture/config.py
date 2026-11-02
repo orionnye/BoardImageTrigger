@@ -9,6 +9,9 @@ CONFIG_PATH = Path(__file__).resolve().parent / "config.json"
 
 DEFAULTS = {
     "camera_index": 0,
+    "camera_select_on_boot": True,
+    "camera_scan_max": 5,
+    "camera_select_timeout_s": 10,
     "frame_width": 1920,
     "frame_height": 1080,
     "lock_camera_auto": True,
@@ -65,6 +68,7 @@ def load_config(path: Path = CONFIG_PATH) -> dict:
     return cfg
 
 
+ZERO_OK = {"camera_index", "camera_select_timeout_s"}
 FRACTIONS = {"present_threshold", "empty_threshold", "still_threshold",
              "background_adapt_rate", "min_object_frac"}
 
@@ -84,11 +88,24 @@ def _check(key, value) -> str | None:
         return "must be between 0 and 1"
     if key == "jpeg_quality" and not 1 <= value <= 100:
         return "must be 1-100"
-    if key not in FRACTIONS and key != "camera_index" and value <= 0:
+    if key in ZERO_OK:
+        return "must be 0 or more" if value < 0 else None
+    if key not in FRACTIONS and value <= 0:
         return "must be positive"
-    if key == "camera_index" and value < 0:
-        return "must be 0 or more"
     return None
+
+
+def save_camera_index(index: int, path: Path = CONFIG_PATH):
+    """Remember the chosen camera in config.json, leaving every other setting untouched."""
+    try:
+        data = json.loads(path.read_text()) if path.exists() else dict(DEFAULTS)
+    except json.JSONDecodeError:
+        log.warning("config.json is not valid JSON; not saving the camera choice")
+        return
+    data["camera_index"] = index
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(data, indent=2) + "\n")
+    tmp.replace(path)
 
 
 def resolve_output_dir(cfg: dict, path: Path = CONFIG_PATH) -> Path:
